@@ -1,13 +1,10 @@
 #/bin/bash -e
 
-EMAIL="${1}"
-DOMAINS="${2}"
+EMAIL="${2}"
+DOMAINS="${3}"
 SECRET_NAMESPACE="${SECRET_NAMESPACE:-default}"
 SECRET_NAME_PREFIX="${SECRET_NAME_PREFIX:-letsencrypt}"
-
-for DOMAIN in ${DOMAINS}; do
-
-SECRET_NAME="${SECRET_NAME_PREFIX}-${DOMAIN//[^a-z0-9]/-}"
+SECRET_NAME="${SECRET_NAME_PREFIX}-${1}"
 
 echo "Generating certificate ${DOMAIN}"
 letsencrypt-auto \
@@ -17,7 +14,7 @@ letsencrypt-auto \
   --standalone-supported-challenges http-01 \
   --http-01-port 80 \
   --email "${EMAIL}" \
-  --domains "${DOMAIN}" \
+  --domains "${DOMAINS}" \
   certonly
 
 echo "Generating kubernetes secret ${SECRET_NAME} (namespace ${SECRET_NAMESPACE})"
@@ -29,12 +26,10 @@ metadata:
   namespace: "${SECRET_NAMESPACE}"
 type: Opaque
 data:
-  cert.pem: "$(cat /etc/letsencrypt/live/${DOMAIN}/cert.pem | base64 --wrap=0)"
-  chain.pem: "$(cat /etc/letsencrypt/live/${DOMAIN}/chain.pem | base64 --wrap=0)"
-  fullchain.pem: "$(cat /etc/letsencrypt/live/${DOMAIN}/fullchain.pem | base64 --wrap=0)"
-  privkey.pem: "$(cat /etc/letsencrypt/live/${DOMAIN}/privkey.pem | base64 --wrap=0)"
+  cert.pem: "$(cat /etc/letsencrypt/live/${DOMAINS%,*}/cert.pem | base64 --wrap=0)"
+  chain.pem: "$(cat /etc/letsencrypt/live/${DOMAINS%,*}/chain.pem | base64 --wrap=0)"
+  fullchain.pem: "$(cat /etc/letsencrypt/live/${DOMAINS%,*}/fullchain.pem | base64 --wrap=0)"
+  privkey.pem: "$(cat /etc/letsencrypt/live/${DOMAINS%,*}/privkey.pem | base64 --wrap=0)"
 EOF
 ) > "${SECRET_NAMESPACE}-${SECRET_NAME}.yml"
 kubectl apply -f "${SECRET_NAMESPACE}-${SECRET_NAME}.yml"
-
-done

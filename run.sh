@@ -6,6 +6,7 @@ readonly SECRET_NAME=$1
 readonly DOMAINS=$2
 readonly DOMAIN_MAIN=$(echo $DOMAINS | sed 's/,.*//')
 readonly SECRET_NAMESPACE=${SECRET_NAMESPACE:-default}
+readonly STAGING=${STAGING:-}
 
 echo "Generating certificate ${DOMAIN_MAIN}"
 certbot \
@@ -15,6 +16,7 @@ certbot \
   --standalone-supported-challenges http-01 \
   --email "${LETS_ENCRYPT_EMAIL}" \
   --domains "${DOMAINS}" \
+  ${STAGING:+"--staging"} \
   certonly
 
 echo "Generating kubernetes secret ${SECRET_NAME} (namespace ${SECRET_NAMESPACE})"
@@ -25,7 +27,7 @@ kind: Secret
 metadata:
   name: "${SECRET_NAME}"
   namespace: "${SECRET_NAMESPACE}"
-type: Opaque
+type: kubernetes.io/tls
 data:
   tls.crt: "$(cat /etc/letsencrypt/live/${DOMAIN_MAIN}/fullchain.pem | base64 | tr -d '\n')"
   tls.key: "$(cat /etc/letsencrypt/live/${DOMAIN_MAIN}/privkey.pem | base64 | tr -d '\n')"

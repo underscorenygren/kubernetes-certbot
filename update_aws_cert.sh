@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ -z "$ELB_NAME" ]; then
   echo "no elb name set"
   exit 1
@@ -42,4 +44,3 @@ echo "set load balancer, deleting tmp after sleep"
 sleep $SLEEP_TIME
 aws iam delete-server-certificate --server-certificate-name $CERT_NAME_TMP --region us-east-1
 echo "done"
-exit 0

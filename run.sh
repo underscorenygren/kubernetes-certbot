@@ -56,4 +56,5 @@ data:
 EOF
 
 ./update_aws_cert.sh $DOMAIN_MAIN
-exit 0
+
+echo "completed run"

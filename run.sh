@@ -2,13 +2,35 @@
 
 set -eu
 
-readonly SECRET_NAME=$1
-readonly DOMAINS=$2
+if [ -n "$DOMAIN" ]; then
+  echo "domain is $DOMAIN"
+else
+  echo "no domain set"
+  exit 1
+fi
+
+if [ -z "$SUBDOMAIN" ] && [ -z "$NO_SUBDOMAIN" ]; then
+  echo "no subdomain set"
+  exit 1
+else
+  echo "SUBDOMAIN is $SUBDOMAIN and NO_SUBDOMAIN is $NO_SUBDOMAIN"
+fi
+
+DOMAINS="$SUBDOMAIN.$DOMAIN"
+
+if [ -z "$NO_SUBDOMAIN"]; then
+  echo "setting only subdomain"
+else
+  echo "setting root domain also"
+  DOMAINS="$DOMAINS,$DOMAIN"
+fi
+
+readonly SECRET_NAME=letsencrypt-cert
 readonly DOMAIN_MAIN=$(echo $DOMAINS | sed 's/,.*//')
 readonly SECRET_NAMESPACE=${SECRET_NAMESPACE:-default}
 readonly STAGING=${STAGING:-}
 
-echo "Generating certificate ${DOMAIN_MAIN}"
+echo "Generating certificate for ${DOMAIN_MAIN} (with domains $DOMAINS)"
 certbot \
   --non-interactive \
   --agree-tos \
@@ -32,3 +54,6 @@ data:
   tls.crt: "$(cat /etc/letsencrypt/live/${DOMAIN_MAIN}/fullchain.pem | base64 | tr -d '\n')"
   tls.key: "$(cat /etc/letsencrypt/live/${DOMAIN_MAIN}/privkey.pem | base64 | tr -d '\n')"
 EOF
+
+./update_aws_cert.sh $DOMAIN_MAIN
+exit 0

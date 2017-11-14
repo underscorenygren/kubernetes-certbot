@@ -120,9 +120,8 @@ Send/signal NOHUP on renewal to allow Nginx to restart?
 
 ## Links
 
-[letsencrypt]: https://letsencrypt.org/
-[certbot]: https://github.com/certbot/certbot
-[kubernetes]: http://kubernetes.io/
-[nginx]: https://nginx.org/
-[kubedns]: https://github.com/kubernetes/kubernetes/tree/master/build/kube-dns
-[ingress-controller]: https://github.com/kubernetes/contrib/tree/master/ingress/controllers
+[letsencrypt](https://letsencrypt.org/)
+[certbot](https://github.com/certbot/certbot)
+[kubernetes](http://kubernetes.io/)
+[nginx](https://nginx.org/)
+[kubedns](https://github.com/kubernetes/kubernetes/tree/master/build/kube-dns)

@@ -34,7 +34,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: "letsencrypt-config"
-              value: domain
+              key: domain
         - name: SUBDOMAIN
           valueFrom:
             secretKeyRef:
@@ -44,22 +44,22 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: "letsencrypt-config"
-              value: no_subdomain
+              key: no_subdomain
         - name: ELB_NAME
           valueFrom:
             configMapKeyRef:
               name: "letsencrypt-config"
-              value: elb_name
+              key: elb_name
         - name: STAGING
           valueFrom:
             configMapKeyRef:
               name: "letsencrypt-config"
-              value: staging
+              key: staging
         - name: LETS_ENCRYPT_EMAIL
           valueFrom:
             configMapKeyRef:
               name: "letsencrypt-config"
-              value: email
+              key: email
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:

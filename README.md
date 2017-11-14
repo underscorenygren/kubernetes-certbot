@@ -39,6 +39,11 @@ You can put it in `config/` (or elsewhere that suits, but that folder is .gitign
 kubectl create configmap letsencrypt-config --from-file=./config/my-config
 ```
 
+Because of some legacy deps, the subdomain is kept in a secret separately. Update kube.yaml to change
+that or create that secret:
+
+`kubectl create secret generic website --from-literal=cluster_name=mycluster`
+
 
 Create the certbot pod:
 

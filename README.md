@@ -25,7 +25,7 @@ Create the service from the `service.yaml`
 kubectl create -f service.yaml
 ```
 
-Create an aws user with permission to update a classic elb. A terraform module example for this is [here](examples/letsencrypt.tf)
+Create an aws user with permission to update a classic elb. [Here is a terraform module to get you started](examples/letsencrypt.tf).
 
 Fill in your secret in kubernetes (hot tip: prefix with a space if you don't want to store it in your bash history).
 

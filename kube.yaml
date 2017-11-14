@@ -32,7 +32,7 @@ spec:
         env:
         - name: DOMAIN
           valueFrom:
-            configMapRef:
+            configMapKeyRef:
               name: "letsencrypt-config"
               value: domain
         - name: SUBDOMAIN
@@ -42,22 +42,22 @@ spec:
               key: "cluster_name"
         - name: NO_SUBDOMAIN
           valueFrom:
-            configMapRef:
+            configMapKeyRef:
               name: "letsencrypt-config"
               value: no_subdomain
         - name: ELB_NAME
           valueFrom:
-            configMapRef:
+            configMapKeyRef:
               name: "letsencrypt-config"
               value: elb_name
         - name: STAGING
           valueFrom:
-            configMapRef:
+            configMapKeyRef:
               name: "letsencrypt-config"
               value: staging
         - name: LETS_ENCRYPT_EMAIL
           valueFrom:
-            configMapRef:
+            configMapKeyRef:
               name: "letsencrypt-config"
               value: email
         - name: AWS_ACCESS_KEY_ID

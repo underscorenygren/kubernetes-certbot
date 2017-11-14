@@ -61,12 +61,6 @@ that or create that secret:
 `kubectl create secret generic website --from-literal=cluster_name=mycluster`
 
 
-Create the certbot pod:
-
-```
-kubectl create -f kube.yaml
-```
-
 Add routing logic to it to your entry pod running in the cluster. For Nginx:
 
 ```
@@ -94,6 +88,12 @@ server {
 }
 ```
 
+You might want to create an empty secret so pod creation doesn't fail. You can use the one provided
+in this repo. _NB: Do not use this key publicly, it is not secure_
+```
+kubectl create -f dummy-tls.yaml
+```
+
 Mount the secret in the `spec` part of your deployment:
 ```yaml
 kind: Deployment
@@ -114,6 +114,16 @@ spec:
 ```
 
 You can do this ahead of time by creating an empty letsencryt secret
+
+
+Lastly, create the certbot pod. It should issue you a cert immadiately
+and you are off to the races:
+
+```
+kubectl create -f kube.yaml
+```
+
+Happy Encrypting!
 
 ## Implementation Details and History
 

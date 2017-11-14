@@ -35,8 +35,24 @@ Fill in your secret in kubernetes (hot tip: prefix with a space if you don't wan
 
 Fill in the settings specified above in a config file and create it.
 You can put it in `config/` (or elsewhere that suits, but that folder is .gitignored by default)
+Use the `.yaml` style creation to lift setting to the top level:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: letsencrypt-config
+  namespace: default
+data:
+  domain: example.com
+  no_subdomain: ""
+  email: my@email.com
+  elb_name: hex-value
+  staging: "true"
 ```
-kubectl create configmap letsencrypt-config --from-file=./config/my-config
+
+```
+kubectl create -f config/my-letsencrypt.yaml
 ```
 
 Because of some legacy deps, the subdomain is kept in a secret separately. Update kube.yaml to change

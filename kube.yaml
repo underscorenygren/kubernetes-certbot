@@ -1,0 +1,83 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: certbot
+  namespace: default
+  labels:
+    component: cluster
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  minReadySeconds: 10
+  selector:
+    matchLabels:
+      component: certbot
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        component: certbot
+    spec:
+      containers:
+      - name: certbot
+        image: underscorenygren/kubernetes-certbot:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 10M
+          limits:
+            cpu: 500m
+            memory: 50M
+        env:
+        - name: DOMAIN
+          valueFrom:
+            configMapRef:
+              name: "letsencrypt-config"
+              value: domain
+        - name: SUBDOMAIN
+          valueFrom:
+            secretKeyRef:
+              name: "website"
+              key: "cluster_name"
+        - name: NO_SUBDOMAIN
+          valueFrom:
+            configMapRef:
+              name: "letsencrypt-config"
+              value: no_subdomain
+        - name: ELB_NAME
+          valueFrom:
+            configMapRef:
+              name: "letsencrypt-config"
+              value: elb_name
+        - name: STAGING
+          valueFrom:
+            configMapRef:
+              name: "letsencrypt-config"
+              value: staging
+        - name: LETS_ENCRYPT_EMAIL
+          valueFrom:
+            configMapRef:
+              name: "letsencrypt-config"
+              value: email
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: "letsencrypt-aws"
+              key: "key"
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: "letsencrypt-aws"
+              key: "secret"
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: "letsencrypt-aws"
+              key: "region"
+        volumeMounts:
+              - mountPath: /etc/letsencrypt
+                name: letsencrypt-data
+      volumes:
+        - name: letsencrypt-data
+          emptyDir: {}

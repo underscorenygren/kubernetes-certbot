@@ -1,135 +1,124 @@
 # kubernetes-certbot
 
 Uses [certbot][certbot] to obtain an X.509 certificate from [Let's encrypt][letsencrypt] and stores it as secret in
-[Kubernetes][kubernetes].
+[Kubernetes][kubernetes] for a named kubernetes cluster with an AWS load balancer entrypoint. Renews certificates
+automatically.
 
 ## Usage
 
-Create a configmap for your secret -> domains mapping:
+Settings are provided to the container via env variables and secrets. Modify `kube.yaml` to suit your needs.
 
-```yaml
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: letsencrypt-ssl-certificates
-data:
-  ssl-certifcates.properties: |
-    some-secret-name=example.com,www.example.com
+- `DOMAIN`: Is the top level domain for your org, e.g. `example.com`, that is shared with all your clusters.
+- `SUBDOMAIN`: Is the name of the cluster to issue a credential for, e.g. `mycluster` to issue certs for `mycluster.example.com`.
+- `NO_SUBDOMAIN`: Optional setting, set to any value to expose a cluster under the root domain, e.g. to host a website under `example.com`.
+  NB that subdomain must still be set, e.g. `production` as cluster with this setting on becomes `production.example.com` and `example.com`
+- `ELB_NAME`: The name of your (classic) ELB to update. This is an hex value, e.g. `{some-hex-value-is-name}.us-east-1.elb.amazonaws.com`
+- `STAGING`: Set to a truthy value to issue certs from letsencrypts staging environment. Start with it on - they have stringent API rate limits.
+- `LETS_ENCRYPT_EMAIL` - email to associate lets encrypt with
+- `aws` secret with `key`, `secret` and `region` with permission to edit ELB
+
+
+## Installation
+
+Create the service from the `service.yaml`
+```
+kubectl create -f service.yaml
 ```
 
-Create a deployment for certbot (fill in your email and consider allocating secure persistant storage for the
-letsencrypt-data volume):
+Create an aws user with permission to update a classic elb. A terraform module example for this is [here](example/letsencrypt.tf)
 
-```yml
----
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: kubernetes-certbot
-  labels:
-    app: kubernetes-certbot
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: kubernetes-certbot
-    spec:
-      containers:
-        - name: certbot
-          image: choffmeister/kubernetes-certbot:latest
-          imagePullPolicy: Always
-          env:
-            - name: SECRET_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: LETS_ENCRYPT_EMAIL
-              # TODO: Provide an email for let's encrypt.
-              value: fill-this-in@example.com
-          volumeMounts:
-            - mountPath: /etc/letsencrypt
-              name: letsencrypt-data
-            - mountPath: /etc/letsencrypt-certs
-              name: letsencrypt-certs-config
-      volumes:
-        - name: letsencrypt-data
-          # TODO: Consider using real, secure storage on your cluster.
-          emptyDir: {}
-        - name: letsencrypt-certs-config
-          configMap:
-            name: letsencrypt-ssl-certificates
-```
-
-Create a service:
-
-```shell
-kubectl expose deployment kubernetes-certbot --port=80
-```
-
-Configure your front gateway, and point your DNS at the gateway, if you haven't already. Examples below; these assume
-you have [kube-dns][kubedns] running, so that nginx is able to resolve the host `kubernetes-certbot`):
-
-### Example: [straight nginx][nginx]
-
- To forward all incoming traffic for certbot to the service:
+Fill in your secret in kubernetes (hot tip: prefix with a space if you don't want to store it in your bash history).
 
 ```
-# nginx.conf
+ kubectl create secret generic letsencrypt-aws --from-literal=key=KEY --from-literal=secret=SECRET --from-literal=region=REGION
+```
+
+Fill in the settings specified above in a config file and create it.
+You can put it in `config/` (or elsewhere that suits, but that folder is .gitignored by default)
+```
+kubectl create configmap letsencrypt-config --from-file=./config/my-config
+```
+
+
+Create the certbot pod:
+
+```
+kubectl create -f kube.yaml
+```
+
+Add routing logic to it to your entry pod running in the cluster. For Nginx:
+
+```
+...
+
 server {
-  listen 80 default_server;
-  server_name _;
+  listen 443 ssl;
 
-  location /.well-known/acme-challenge/ {
-    proxy_pass http://kubernetes-certbot;
+  ssl_certificate /letsencrypt/tls.crt;
+  ssl_certificate_key /letsencrypt/tls.key;
+
+  ...
+}
+
+...
+
+server {
+  listen 80;
+
+  location ^~ /.well-known/acme-challenge/ {
+    proxy_pass http://certbot;
   }
+
+  ...
 }
 ```
 
-### Example: [ingress-controller][ingress-controller]
-
-You'll want to use add a route to your host:
-
+Mount the secret in the `spec` part of your deployment:
 ```yaml
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: certbot-ingress
-  annotations:
-    # Needed if your ingress controller forces SSL redirects
-    ingress.kubernetes.io/ssl-redirect: "false"
+kind: Deployment
+...
 spec:
-  rules:
-    - host: example.com
-      http:
-        paths:
-          - path: /.well-known/acme-challenge/
-            backend:
-              serviceName: kubernetes-certbot
-              servicePort: 80
-    - host: www.example.com
-      http:
-        paths:
-          - path: /.well-known/acme-challenge/
-            backend:
-              serviceName: kubernetes-certbot
-              servicePort: 80
+  template:
+    spec:
+      containers:
+        ...
+        volumeMounts:
+        - name: letsencrypt
+          mountPath: /letsencrypt/
+          readOnly: true
+      volumes:
+      - name: letsencrypt
+        secret:
+          secretName: letsencrypt-cert
 ```
 
-## And done
+You can do this ahead of time by creating an empty letsencryt secret
 
-And that should work; the next time the certbot runs, it will create the secret "some-secret-name" for those hosts. The
-certbot checks once every day if it needs to renew your certificates, and creates and/or updates the appropriate secrets;
-if using the nginx-ingress-controller it should reload the config when the secrets change.
+## Implementation Details and History
 
-## Manual renew run:
+This is based on the work of https://github.com/pjmorr/kubernetes-certbot, but eschews the use
+of the ingress controller.
 
-If you don't want to wait the initial 5 minutes, or you want to retry, you can run the cert generation with:
+It uses a python image and entrypoint, because I prefer python scripting to bash. However,
+some bash scripts are kept and edited in place.
 
-```shell
-kubectl exec $(kubectl get pods -l app=kubernetes-certbot --output=jsonpath={.items..metadata.name}) -- ./renew_certs.sh
-```
+To make renewal more straighforward, it uses a lock file to block updates,
+and uses cron to remove the file to enable renewal at a set interval.
+
+It uses the aws-cli to dynamically update the ELB when certs are issued.
+
+My nginx setup auto-reloads, so this process doesn't handle sending a SIGHUP to Nginx
+to reload the new certs.
+
+## Future Work
+
+Support hosting deeper subdomains, e.g. `api.cluster.example.com`
+
+Back up letsencrypt certs on generation, to S3 most likely.
+
+Send/signal NOHUP on renewal to allow Nginx to restart?
+
+## Links
 
 [letsencrypt]: https://letsencrypt.org/
 [certbot]: https://github.com/certbot/certbot

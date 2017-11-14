@@ -118,10 +118,8 @@ Back up letsencrypt certs on generation, to S3 most likely.
 
 Send/signal NOHUP on renewal to allow Nginx to restart?
 
-## Resources
-
-- [letsencrypt](https://letsencrypt.org/)
-- [certbot](https://github.com/certbot/certbot)
-- [kubernetes](http://kubernetes.io/)
-- [nginx](https://nginx.org/)
-- [kubedns](https://github.com/kubernetes/kubernetes/tree/master/build/kube-dns)
+[letsencrypt]: https://letsencrypt.org/
+[certbot]: https://github.com/certbot/certbot
+[kubernetes]: http://kubernetes.io/
+[nginx]: https://nginx.org/
+[kubedns]: https://github.com/kubernetes/kubernetes/tree/master/build/kube-dns

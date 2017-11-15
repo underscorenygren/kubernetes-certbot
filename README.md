@@ -9,7 +9,9 @@ automatically.
 Settings are provided to the container via env variables and secrets. Modify `kube.yaml` to suit your needs.
 
 - `DOMAIN`: Is the top level domain for your org, e.g. `example.com`, that is shared with all your clusters.
+    You can add multiple domains with a comma to issue a multi-cert, e.g. "example.com,example.org"
 - `SUBDOMAIN`: Is the name of the cluster to issue a credential for, e.g. `mycluster` to issue certs for `mycluster.example.com`.
+    You can have multiple of these also, same as with domains, uses comma.
 - `NO_SUBDOMAIN`: Optional setting, set to any value to expose a cluster under the root domain, e.g. to host a website under `example.com`.
   NB that subdomain must still be set, e.g. `production` as cluster with this setting on becomes `production.example.com` and `example.com`
 - `ELB_NAME`: The name of your (classic) ELB to update. This is an hex value, e.g. `{some-hex-value-is-name}.us-east-1.elb.amazonaws.com`

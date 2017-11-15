@@ -2,28 +2,9 @@
 
 set -eu
 
-if [ -n "$DOMAIN" ]; then
-  echo "domain is $DOMAIN"
-else
-  echo "no domain set"
-  exit 1
-fi
+DOMAINS="$1"
 
-if [ -z "$SUBDOMAIN" ] && [ -z "$NO_SUBDOMAIN" ]; then
-  echo "no subdomain set"
-  exit 1
-else
-  echo "SUBDOMAIN is $SUBDOMAIN and NO_SUBDOMAIN is $NO_SUBDOMAIN"
-fi
-
-DOMAINS="$SUBDOMAIN.$DOMAIN"
-
-if [ -z "$NO_SUBDOMAIN"]; then
-  echo "setting only subdomain"
-else
-  echo "setting root domain also"
-  DOMAINS="$DOMAINS,$DOMAIN"
-fi
+echo "running certbot on domains $DOMAINS"
 
 readonly SECRET_NAME=letsencrypt-cert
 readonly DOMAIN_MAIN=$(echo $DOMAINS | sed 's/,.*//')

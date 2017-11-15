@@ -11,6 +11,12 @@ readonly DOMAIN_MAIN=$(echo $DOMAINS | sed 's/,.*//')
 readonly SECRET_NAMESPACE=${SECRET_NAMESPACE:-default}
 readonly STAGING=${STAGING:-}
 
+if [ -z "$STAGING"]; then
+  echo "requesting live cert"
+else
+  echo "requesting staging cert"
+fi
+
 echo "Generating certificate for ${DOMAIN_MAIN} (with domains $DOMAINS)"
 certbot \
   --non-interactive \

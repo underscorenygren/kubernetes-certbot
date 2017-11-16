@@ -57,11 +57,6 @@ data:
 kubectl create -f config/my-letsencrypt.yaml
 ```
 
-Because of some legacy deps, the subdomain is kept in a secret separately. Update kube.yaml to change
-that or create that secret:
-
-`kubectl create secret generic website --from-literal=cluster_name=mycluster`
-
 
 Add routing logic to it to your entry pod running in the cluster. For Nginx:
 

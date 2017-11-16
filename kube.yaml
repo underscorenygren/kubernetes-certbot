@@ -37,9 +37,9 @@ spec:
               key: domain
         - name: SUBDOMAIN
           valueFrom:
-            secretKeyRef:
-              name: "website"
-              key: "cluster_name"
+            configMapKeyRef:
+              name: "letsencrypt-config"
+              key: subdomain
         - name: NO_SUBDOMAIN
           valueFrom:
             configMapKeyRef:

@@ -5,13 +5,13 @@ if [ -z "$ELB_NAME" ]; then
   exit 1
 fi
 
-if [ -z "$SUBDOMAIN" ]; then
-  echo "no subdomain set"
+if [ -z "$CERT_PREFIX" ]; then
+  echo "no prefix set"
   exit 1
 fi
 
 readonly DOMAIN_MAIN=$1
-CERT_NAME="$SUBDOMAIN-letsencrypt"
+CERT_NAME="$CERT_PREFIX-letsencrypt"
 CERT_NAME_TMP="$CERT_NAME-tmp"
 CERT_PATH=file:///etc/letsencrypt/live/${DOMAIN_MAIN}/
 PRIV_KEY_PATH=$CERT_PATH/privkey.pem

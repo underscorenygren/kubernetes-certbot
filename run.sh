@@ -17,6 +17,10 @@ else
   echo "requesting staging cert"
 fi
 
+if [ -z "$CERT_PREFIX" ]; then
+  echo "no cert name set, can't upload"
+fi
+
 echo "Generating certificate for ${DOMAIN_MAIN} (with domains $DOMAINS)"
 certbot \
   --non-interactive \

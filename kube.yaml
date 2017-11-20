@@ -27,8 +27,8 @@ spec:
             cpu: 100m
             memory: 10M
           limits:
-            cpu: 500m
-            memory: 50M
+            cpu: 1000m
+            memory: 100M
         env:
         - name: DOMAIN
           valueFrom:
@@ -50,11 +50,21 @@ spec:
             configMapKeyRef:
               name: "letsencrypt-config"
               key: elb_name
+        - name: ONE_OFFS
+          valueFrom:
+            configMapKeyRef:
+              name: "letsencrypt-config"
+              key: one_offs
         - name: STAGING
           valueFrom:
             configMapKeyRef:
               name: "letsencrypt-config"
               key: staging
+        - name: CERT_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: "letsencrypt-config"
+              key: cert_prefix
         - name: LETS_ENCRYPT_EMAIL
           valueFrom:
             configMapKeyRef:

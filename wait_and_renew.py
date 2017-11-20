@@ -26,6 +26,7 @@ def parse_domains():
 	domain = env("DOMAIN")
 	subdomain = env("SUBDOMAIN")
 	no_subdomain = env("NO_SUBDOMAIN", ensure=False)
+	one_offs = env("ONE_OFFS", ensure=False)
 	domains = [d.strip() for d in domain.split(',')]
 	subdomains = [d.strip() for d in subdomain.split(',')]
 
@@ -38,7 +39,12 @@ def parse_domains():
 		logger.debug("setting only subdomains")
 		domains = prefixed
 
-	return ",".join(domains)
+	joined = ",".join(domains)
+	if one_offs:
+		logger.debug("adding one offs to domains: {}".format(one_offs))
+		joined += ",{}".format(one_offs)
+
+	return joined
 
 
 while True:

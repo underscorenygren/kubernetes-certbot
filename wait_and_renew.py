@@ -1,32 +1,22 @@
 #!/usr/bin/env python
 import datetime
-import logging
-import os
-import subprocess
 import time
 
-logger = logging.getLogger('certbot')
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+import util
+from update_elb import Aws
+from certbot import Certbot
 
-logger.info("starting wait and renew at {}".format(str(datetime.datetime.now())))
+logger = util.configure_logger()
 FILENAME = './cert.lock'
 SLEEP_TIME = 600
 
 
-def env(name, ensure=True):
-	val = os.environ.get(name)
-	if not val and ensure:
-		raise ValueError("Couldn't find {} in environment".format(name))
-	return val
-
-
 def parse_domains():
 
-	domain = env("DOMAIN")
-	subdomain = env("SUBDOMAIN")
-	no_subdomain = env("NO_SUBDOMAIN", ensure=False)
-	one_offs = env("ONE_OFFS", ensure=False)
+	domain = util.setting("DOMAIN")
+	subdomain = util.setting("SUBDOMAIN")
+	no_subdomain = util.option("NO_SUBDOMAIN")
+	one_offs = util.option("ONE_OFFS")
 	domains = [d.strip() for d in domain.split(',')]
 	subdomains = [d.strip() for d in subdomain.split(',')]
 
@@ -47,20 +37,38 @@ def parse_domains():
 	return joined
 
 
-while True:
-	logger.debug("checking lock")
-	try:
-		f = open(FILENAME, 'r')
-		f.read()
-		logger.info("Cert is locked, sleeping {}".format(SLEEP_TIME))
-		f.close()
-		time.sleep(SLEEP_TIME)
-	except IOError:
-		logger.info("no lock file, renewing certs")
-		domains = parse_domains()
-		subprocess.check_call(['./run.sh', domains])
-		logger.debug("certs renewed, locking")
-		f = open(FILENAME, 'w')
-		f.write(str(datetime.datetime.now()))
-		f.close()
-		logger.debug("locked")
+if __name__ == "__main__":
+
+	cert_name = util.leading_domain()
+	logger.info("starting wait and renew for {} at {}".format(cert_name, str(datetime.datetime.now())))
+	certbot = Certbot(cert_name, staging=util.option("STAGING"))
+	aws = Aws()
+	logger.debug("initialized certbot and aws")
+
+	if util.option("RELOAD"):
+		err = certbot.load()
+		if err:
+			logger.info("couldn't load from secret, recreating: {}".format(err))
+
+	if not certbot.has_certificate():
+		certbot.create(parse_domains())
+		aws.update_cert(certbot)
+	else:
+		certbot.renew()
+
+	while True:
+		logger.debug("checking lock")
+		try:
+			f = open(FILENAME, 'r')
+			f.read()
+			logger.info("Cert is locked, sleeping {}".format(SLEEP_TIME))
+			f.close()
+			time.sleep(SLEEP_TIME)
+		except IOError:
+			logger.info("no lock file, renewing certs")
+			certbot.renew()
+			logger.debug("certs renewed, locking")
+			f = open(FILENAME, 'w')
+			f.write(str(datetime.datetime.now()))
+			f.close()
+			logger.debug("locked")

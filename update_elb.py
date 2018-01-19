@@ -87,32 +87,54 @@ class Aws(object):
 	def do_full_update(self, elb_name, cert_name, chain, key):
 		"""AWS doesn't allow updates in place, so we do a tmp swap"""
 		tmp_name = "{}-tmp".format(cert_name)
-		if self.has_cert(tmp_name):
-			self.remove_cert(tmp_name)
+		try:
+			if self.has_cert(tmp_name):
+				self.remove_cert(tmp_name)
+		except botocore.exceptions.ClientError as e:
+			util.ensure_typed_aws_error(e, 'DeleteConflict')
+			logger.info("couldn't remove tmp cert")
 		self.wait_for_cert_missing(tmp_name)
 
 		try:
 			arn = self.upload_cert(tmp_name, chain, key)
 			self.wait_for_cert(tmp_name)
 			self.update_elb_cert(elb_name, arn)
-			if self.has_cert(cert_name):
-				self.remove_cert(cert_name)
-				self.wait_for_cert_missing(cert_name)
+
 		except botocore.exceptions.ClientError as e:
 			util.ensure_typed_aws_error(e, 'DeleteConflict')
-			logger.info("couldn't delete tmp cert, must be set from different deploy. Continuing")
+			logger.info("couldn't delete old cert, must be set from different deploy. Continuing")
+
+		while True:
+			try:
+				self.remove_cert(cert_name)
+				self.wait_for_cert_missing(cert_name)
+				break
+			except botocore.exceptions.ClientError as e:
+				util.ensure_typed_aws_error(e, 'DeleteConflict')
+				logger.info("couldn't delete main cert, sleeping and retrying")
+				time.sleep(1)
 
 		arn = self.upload_cert(cert_name, chain, key)
+		logger.info("uploaded cert {} as {}".format(cert_name, arn))
 		self.wait_for_cert(cert_name)
+		logger.info("sleeping arbitrarily to make cert resolve")
+		time.sleep(20)
 		self.update_elb_cert(elb_name, arn)
-		self.remove_cert(tmp_name)
+		while True:
+			try:
+				if self.has_cert(tmp_name):
+					self.remove_cert(tmp_name)
+				break
+			except botocore.exceptions.ClientError as e:
+				util.ensure_typed_aws_error(e, 'DeleteConflict')
+				logger.info("couldn't delete tmp cert, must be set from different deploy. Continuing")
 
 	def update_cert(self, certbot):
 		elb_name = util.setting("ELB_NAME")
 		ssl_name = "{}-letsencrypt".format(util.setting("CERT_PREFIX"))
 		cert_name = certbot.cert_name
 		if not certbot.has_certificate():
-			logger.error("cannot update cert {}, does not exist".format(cert_name))
+			logger.error("cannot update elb for cert name({}), not present on disk".format(cert_name))
 		elif not self.load_balancer_exists(elb_name):
 			logger.error("Load balancer {} does not exist".format(elb_name))
 		else:
@@ -122,7 +144,7 @@ class Aws(object):
 			certbot.update_secret(data, key)
 
 	def renew(self):
-		certbot = Certbot(util.leading_domain())
+		certbot = Certbot(util.parse_domains().split(",")[0])
 		self.update_cert(certbot)
 
 

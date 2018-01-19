@@ -60,6 +60,8 @@ spec:
             configMapKeyRef:
               name: "letsencrypt-config"
               key: staging
+        - name: DEBUG
+          value: "true"
         - name: CERT_PREFIX
           valueFrom:
             configMapKeyRef:

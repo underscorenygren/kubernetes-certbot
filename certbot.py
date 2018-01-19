@@ -1,6 +1,9 @@
 import json
 import logging
 import os
+import subprocess
+import tempfile
+import time
 
 import pystache
 
@@ -26,7 +29,9 @@ class Certbot(object):
 		self.staging = staging
 		self.secret_name = secret_name
 		self.secret_namespace = secret_namespace
-		self.email = util.setting("LETSENCRYPT_EMAIL")
+		self.email = util.setting("LETS_ENCRYPT_EMAIL")
+		if staging:
+			logger.info("running in staging mode")
 
 	def load(self):
 		if self.is_dummy():
@@ -68,12 +73,14 @@ class Certbot(object):
 			raise ValueError("No template set")
 		with open(template, 'r') as f:
 			template = f.read()
-			rendered = pystache.render(template, {
-				"name": self.secret_name,
-				"namespace": self.secret_namespace,
-				"chain": util.encode(chain),
-				"key": util.encode(key)})
-			return util.run(['kubectl', 'apply', '-f', rendered], sensitive_args=True)
+			with tempfile.NamedTemporaryFile() as tf:
+				rendered = pystache.render(template, {
+					"name": self.secret_name,
+					"namespace": self.secret_namespace,
+					"chain": util.encode(chain),
+					"key": util.encode(key)})
+				tf.write(rendered)
+				return util.run(['kubectl', 'apply', '-f', tf.name], sensitive_args=True)
 
 	def has_certificate(self):
 		return os.path.exists(self._path())
@@ -101,10 +108,12 @@ class Certbot(object):
 		if self.is_dummy():
 			self.load_dummy_certs()
 		else:
-			args = ['--non-interactive', '--agree-tos',
+			args = ['certonly', '--non-interactive', '--agree-tos',
 					'--standalone', '--standalone-supported-challenges',
-					'http-01', '--email', self.emails,
-					domains_string]
+					'http-01', '--email', self.email,
+					'-d', domains_string]
+			if self.staging:
+				args.append('--staging')
 			self.run_certbot(args)
 
 	def renew(self):
@@ -112,14 +121,28 @@ class Certbot(object):
 			self.load_dummy_certs()
 			update_elb.Aws().update_elb(self)
 		else:
-			self.run_certbot(['renew', '--deploy-hook "python update_elb.py renew"'])
+			self.run_certbot(['renew', '--renew-hook', "sh {}".format(os.path.join(os.path.realpath(__file__), 'renew.sh'))])
 
-	def run_cerbot(self, args):
+	def run_certbot(self, args):
 		if 'certbot' != args[0]:
 			args = ['certbot'] + args
 
-		if self.staging and '--staging' not in args:
-			args.append('--staging')
+		max_tries = 3
+		worked = False
+		for i in xrange(1, max_tries + 1):
+			try:
+				util.run(args)
+				worked = True
+				break
+			except subprocess.CalledProcessError as e:
+				if e.output.find("unknownHost") != -1:
+					sleep_time = i * 10
+					logger.info("catching unknown host error and sleeping {}s to try to recover".format(sleep_time))
+					time.sleep(sleep_time)
+				else:
+					raise e
+		if not worked:
+			raise Exception("Too many unknown host exceptions")
 
 	def _path(self, _file=None):
 		args = [self.cert_name, _file] if _file else [self.cert_name]

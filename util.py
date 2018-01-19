@@ -71,3 +71,30 @@ def run(args, sensitive_args=False):
 def ensure_typed_aws_error(e, _type):
 	if not e.response.get("Error", {}).get("Code") == _type:
 		raise e
+
+
+def parse_domains():
+
+	domain = setting("DOMAIN")
+	subdomain = setting("SUBDOMAIN")
+	no_subdomain = option("NO_SUBDOMAIN")
+	one_offs = option("ONE_OFFS")
+	domains = [d.strip() for d in domain.split(',')]
+	subdomains = [d.strip() for d in subdomain.split(',')]
+	logger = get_logger()
+
+	logger.debug("parsed main domains {}".format(domains))
+	prefixed = ["{}.{}".format(_subdom, _dom) for _dom in domains for _subdom in subdomains]
+	if no_subdomain:
+		logger.debug("including root domains")
+		domains = domains + prefixed
+	else:
+		logger.debug("setting only subdomains")
+		domains = prefixed
+
+	joined = ",".join(domains)
+	if one_offs:
+		logger.debug("adding one offs to domains: {}".format(one_offs))
+		joined += ",{}".format(one_offs)
+
+	return joined
